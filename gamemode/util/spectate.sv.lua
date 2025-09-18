@@ -40,55 +40,61 @@ end
 function SpectateService.Spectate(ply, cmd, args)
 	local target = SpectateService.FindPlayerByName(args[1])
 
-	if ply.can_spectate and CurTime() > ply.spectate_timeout then
+	if ply.can_spectate and not ply.spectating and CurTime() > ply.spectate_timeout then
 		if target then
 			if ply:GetObserverMode() == OBS_MODE_NONE then
-				if not ply:IsOnGround() then
-					ply:ChatPrint("You can't spectate in the air.")
-					return
-				end
-
-				if ply:Crouching() then
-					ply:ChatPrint("You can't spectate while crouching.")
-					return
-				end
-
 				if target == ply then
-					ply:ChatPrint("You can't spectate yourself.")
+					ply:ChatPrint "You can't spectate yourself."
+
 					return
 				end
 
-				ply.spectate_savepoint = SavepointService.CreateSavepoint(ply)
-			end
+				if ply.lobby then
+					ply.lobby:RemovePlayer(ply)
+				end
 
-			table.insert(target.spectators, ply)
-			ply:SpectateEntity(target)
-			ply:Spectate(ply.spectate_obs_mode)
-			ply.spectate_timeout = CurTime() + 1
-			TrailService.RemoveTrail(ply)
-			SpectateService.SendSpectateKeys(target.buttons, ply)
-			StaminaService.SendStamina(ply, target, "airaccel")
+				ply.spectating = true
+				ply.spectate_timeout = CurTime() + 1
+
+				table.insert(target.spectators, ply)
+
+				GhostService.Ghost(ply, {
+					kill = true,
+					ragdoll = true,
+					statue = true,
+					savepoint = {
+						health = true
+					}
+				})
+
+				ply:SpectateEntity(target)
+				ply:Spectate(ply.spectate_obs_mode)
+
+				SpectateService.SendSpectateKeys(target.buttons, ply)
+				StaminaService.SendStamina(ply, target, "airaccel")
+			end
 		else
-			ply:ChatPrint("Player not found.")
+			ply:ChatPrint "Player not found."
 		end
 	end
 end
 concommand.Add("sv_emm_spectate", SpectateService.Spectate)
 
 function SpectateService.UnSpectate(ply)
-	if ply:GetObserverMode() ~= OBS_MODE_NONE then
-		local health = ply:Health()
+	if ply.spectating then
+		ply.spectating = false
 
 		table.RemoveByValue(ply:GetObserverTarget().spectators, ply)
-		TrailService.SetupTrail(ply)
+
 		ply:UnSpectate()
 		ply:Spawn()
-		ply:SetHealth(health)
-		SavepointService.LoadSavepoint(ply, ply.spectate_savepoint)
-		ply:SetVelocity(Vector(0,0,0))
+
+		GhostService.UnGhost(ply)
 	end
 end
 concommand.Add("emm_unspectate", SpectateService.UnSpectate)
+hook.Add("LobbyPlayerJoin", "SpectateService.UnSpectate", SpectateService.UnSpectate)
+hook.Add("FinishPlayerClass", "SpectateService.UnSpectate", SpectateService.UnSpectate)
 
 function SpectateService.HandleDisconnect(ply)
 	if ply:GetObserverMode() ~= OBS_MODE_NONE then

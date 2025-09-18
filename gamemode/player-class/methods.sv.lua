@@ -1,4 +1,4 @@
-local player_metatable = FindMetaTable("Player")
+local player_metatable = FindMetaTable "Player"
 
 function player_metatable:SetPlayerClass(class)
 	local old_class = self.player_class
@@ -11,6 +11,7 @@ function player_metatable:SetPlayerClass(class)
 	table.insert(self.lobby[class.key], self)
 	self:SetupPlayerClass()
 
+	hook.Run("PlayerClassChange", self, old_class, class)
 	MinigameService.CallHook(self.lobby, "PlayerClassChange", ply, old_class, class)
 	NetService.Broadcast("PlayerClass", self, class.id)
 end
@@ -22,9 +23,10 @@ function player_metatable:ClearPlayerClass(net)
 
 	table.RemoveByValue(self.lobby[self.player_class.key], self)
 	self.player_class = nil
-	self:EndPlayerClass()
+	self:FinishPlayerClass()
 
 	if net then
+		hook.Run("PlayerClassChange", self, old_class)
 		MinigameService.CallHook(self.lobby, "PlayerClassChange", ply, old_class)
 		NetService.Broadcast("PlayerClass", self)
 	end

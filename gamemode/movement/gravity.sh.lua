@@ -6,15 +6,20 @@ GravityService = GravityService or {}
 CreateConVar("emm_gravity", 300, FCVAR_REPLICATED, "Player gravity")
 
 function GravityService.GetDefaultGravity()
-	return GetConVar("emm_gravity"):GetFloat()
+	return GetConVar "emm_gravity":GetFloat()
 end
 
 function GravityService.InitPlayerProperties(ply)
-	ply.gravity = 300
+	ply.gravity = GravityService.GetDefaultGravity()
 end
 hook.Add(
 	SERVER and "InitPlayerProperties" or "InitLocalPlayerProperties",
 	"GravityService.InitPlayerProperties",
+	GravityService.InitPlayerProperties
+)
+hook.Add(
+	"InitPlayerClassProperties",
+	"GravityService.InitPlayerClassProperties",
 	GravityService.InitPlayerProperties
 )
 
@@ -32,7 +37,7 @@ function GravityService.SetupGravity(ply, move)
 		ply.gravity = GravityService.GetDefaultGravity()
 	end
 
-	local gravity = GetConVar("sv_stopspeed"):GetFloat()
+	local gravity = GetConVar "sv_stopspeed":GetFloat()
 
 	if gravity ~= 0 then
 		local mult = gravity/(GravityService.GetDefaultGravity() * 200)
@@ -45,4 +50,4 @@ function GravityService.SetupGravity(ply, move)
 		move:SetVelocity(GravityService.Velocity(ply, move))
 	end
 end
-hook.Add("PlayerTick", "GravityService.SetupGravity", GravityService.SetupGravity)
+hook.Add("SetupMove", "GravityService.SetupGravity", GravityService.SetupGravity)

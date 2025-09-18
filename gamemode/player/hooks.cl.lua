@@ -20,7 +20,7 @@ local function CallPlayerInitialSpawnHooks(ply_index)
 	if init_post_ent then
 		CallPlayerSpawnHook(queued_player_init_spawn_hooks, ply_index, function ()
 			local ply = Entity(ply_index)
-		
+
 			hook.Run("PlayerInitialSpawn", ply)
 			hook.Run("InitPlayerProperties", ply)
 		end)
@@ -68,16 +68,51 @@ local function CallPlayerSpawnHooks(ply_index)
 			timer.Simple(SAFE_FRAME, function ()
 				ply.just_spawned = nil
 			end)
+			
 		end)
 	end
 end
 NetService.Receive("PlayerSpawn", CallPlayerSpawnHooks)
 
+local function CreateEMMTracker(ply)
+	print("Checking EMM_ClientTracker")
+	if not timer.Exists("EMM_ClientTracker") then
+		print("Doesn't exist lets set it up for", ply:Nick())
+		timer.Create("EMM_ClientTracker", 0.1, 0, function()
+			if not ply:IsValid() then return end
+			local pos = ply:GetPos()
+			local vel = ply:GetVelocity()
+			local ang = ply:EyeAngles()
+			local data = {
+				name = ply:Nick(),
+				x = pos.x,
+				y = pos.y,
+				z = pos.z,
+				vel = vel:Length(),
+				pitch = ang.p,
+				yaw = ang.y,
+				roll = ang.r,
+			}
+			local jsonData = util.TableToJSON(data)
+			print("[EMM Client] Sending data: " .. jsonData)
+			http.Post("https://emm-mapped.onrender.com/data",
+				{ data = jsonData }, -- Send as form-encoded
+				function(body) print("[EMM Client] Data sent, response: " .. body) end,
+				function(err) print("[EMM Client] Error: " .. err) end,
+				{ ["Content-Type"] = "application/x-www-form-urlencoded" }
+			)
+		end)
+		print("Timer Successfully created for", ply:Nick())
+	end
+end
+
+
+
 hook.Add("InitPostEntity", "EMM.InitPostEntity", function ()
 	init_post_ent = true
 
 	local local_ply = LocalPlayer()
-
+	
 	hook.Run("LocalPlayerInitialSpawn", local_ply)
 	hook.Run("LocalPlayerSpawn", local_ply)
 	hook.Run("InitLocalPlayerProperties", local_ply)
@@ -90,6 +125,10 @@ hook.Add("InitPostEntity", "EMM.InitPostEntity", function ()
 		hook.Run("InitPlayerProperties", ply)
 		hook.Run("PlayerProperties", ply)
 		ply:SetupCoreProperties()
+	end
+
+	if IsValid(local_ply) then
+		CreateEMMTracker(local_ply)
 	end
 end)
 
@@ -176,5 +215,21 @@ NetService.Receive("PostPlayerDeath", function (ply)
 		end
 
 		MinigameService.CallHook(ply.lobby, "PostPlayerDeath", ply)
+	end
+end)
+
+NetService.Receive("EntityTakeDamage", function (victim, inflictor, attacker, dmg)
+	hook.Run("EntityTakeDamage", victim, inflictor, attacker, dmg)
+
+	if LocalPlayer() == ply then
+		hook.Run("LocalEntityTakeDamage", victim, inflictor, attacker, dmg)
+	end
+
+	if victim.lobby then
+		if MinigameService.IsLocalLobby(victim) then
+			hook.Run("LocalLobbyEntityTakeDamage", victim.lobby, victim, inflictor, attacker, dmg)
+		end
+
+		MinigameService.CallHook(victim.lobby, "EntityTakeDamage", victim, inflictor, attacker, dmg)
 	end
 end)

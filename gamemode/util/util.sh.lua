@@ -25,9 +25,29 @@ function Default(...)
 	return final_v
 end
 
+function Property(table, key, default, collect)
+	if table then
+		local v = not Nily(table[key]) and table[key] or default
+
+		if collect then
+			table[key] = nil
+		elseif Nily(table[key]) then
+			table[key] = v
+		end
+
+		return v
+	else
+		return default
+	end
+end
+
+function RemapClamp(n, in_min, in_max, out_min, out_max)
+	return math.Remap(math.Clamp(n, in_min, in_max), in_min, in_max, out_min, out_max)
+end
+
 function Snap(n, snap)
 	local mod = n % snap
-	
+
 	return n - mod + (math.Round(mod/snap) * snap)
 end
 
@@ -72,10 +92,10 @@ function IsColor(color)
 end
 
 function IsPlayer(ply)
-	return isentity(ply) and IsValid(ply) and ply:IsPlayer() 
+	return isentity(ply) and IsValid(ply) and ply:IsPlayer()
 end
 
-function GetPlayer(ply)
+function GetObservingPlayer(ply)
 	if SERVER then
 		if IsValid(ply) and IsValid(ply:GetObserverTarget()) then
 			return ply:GetObserverTarget()
@@ -84,13 +104,13 @@ function GetPlayer(ply)
 		return ply
 	else
 		local local_ply = LocalPlayer()
+
 		if IsValid(local_ply) then
 			if IsValid(local_ply:GetObserverTarget()) then
 				return local_ply:GetObserverTarget()
 			end
 		end
-		
+
 		return local_ply
 	end
-	return nil
 end

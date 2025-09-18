@@ -15,20 +15,13 @@ function LobbyCardContainer:Init(lobby)
 	self:AnimateAttribute("alpha", 255, ANIMATION_DURATION * 2)
 end
 
-function LobbyCardContainer:AnimateFinish()
-	self:AnimateAttribute("alpha", 0, {
+function LobbyCardContainer:Finish()
+	self:AnimateFinish {
 		duration = ANIMATION_DURATION * 2,
-
-		callback = function ()
-			LobbyCardContainer.super.Finish(self)
-		end
-	})
+		alpha = 0
+	}
 
 	self.lobby_card:FinishLobby()
-end
-
-function LobbyCardContainer:Finish()
-	self:AnimateFinish()
 end
 
 LobbyCard = LobbyCard or Class.New(Element)
@@ -61,12 +54,15 @@ function LobbyCard:Init(lobby)
 			width = LARGE_BUTTON_ICON_SIZE,
 			height = LARGE_BUTTON_ICON_SIZE,
 			padding = 2,
+			inherit_color = false,
 			background_color = lobby.prototype.color,
+			color = COLOR_BACKGROUND,
 
 			Element.New {
 				width_percent = 1,
 				height_percent = 1,
-				material = PNGMaterial("emm2/minigames/"..lobby.prototype.key.."-2x.png")
+				material = PNGMaterial("emm2/minigames/"..lobby.prototype.key.."-2x.png"),
+				color = COLOR_RED
 			}
 		},
 
@@ -116,10 +112,10 @@ function LobbyCard:Init(lobby)
 	end
 
 	self.join = self.switch:Add(ButtonBar.New {
-		background_color = lobby.prototype.color,
-		color = COLOR_WHITE,
-		material = PNGMaterial("emm2/ui/join.png"),
+		material = PNGMaterial "emm2/ui/join.png",
 		text = "Join",
+		fill_color = true,
+		color = lobby.prototype.color,
 
 		on_click = function ()
 			local cur_time = CurTime()
@@ -134,10 +130,10 @@ function LobbyCard:Init(lobby)
 	})
 
 	self.leave = self.switch:Add(ButtonBar.New {
-		background_color = lobby.prototype.color,
-		color = COLOR_WHITE,
-		material = PNGMaterial("emm2/ui/leave.png"),
+		material = PNGMaterial "emm2/ui/leave.png",
 		text = "Leave",
+		fill_color = true,
+		color = lobby.prototype.color,
 
 		on_click = function ()
 			NetService.SendToServer "RequestLobbyLeave"
@@ -154,7 +150,7 @@ function LobbyCard:AddRestartAction()
 		crop_bottom = 1,
 		background_color = COLOR_GRAY,
 		color = self.lobby.prototype.color,
-		material = PNGMaterial("emm2/ui/restart.png"),
+		material = PNGMaterial "emm2/ui/restart.png",
 		text = "Restart",
 
 		on_click = function ()
@@ -172,17 +168,11 @@ function LobbyCard:AddRestartAction()
 end
 
 function LobbyCard:FinishRestartAction()
-	local old_restart = self.restart
-
-	old_restart:AnimateAttribute("crop_bottom", 1, {
+	self.restart:AnimateFinish {
 		duration = ANIMATION_DURATION * 2,
-
-		callback = function ()
-			old_restart:Finish()
-		end
-	})
-
-	old_restart:AnimateAttribute("alpha", 0, ANIMATION_DURATION * 2)
+		crop_bottom = 1,
+		alpha = 0
+	}
 
 	self.restart = nil
 end
@@ -213,19 +203,15 @@ end
 hook.Add("LocalLobbySetState", "LobbyCard.AdjustStateHostActions", LobbyCard.AdjustStateHostActions)
 
 function LobbyCard:FinishLobby()
-	if not self.finishing then
-		self.finishing = true
-
-		if self == self.lobby.card_element then
-			self.lobby.card_element = nil
-		end
-
-		for _, ply in pairs(self.lobby.players) do
-		    if IsValid(ply) then
-			    ply.lobby_card_element = nil
-			end
-		end
-
-		self.lobby = nil
+	if self == self.lobby.card_element then
+		self.lobby.card_element = nil
 	end
+
+	for _, ply in pairs(self.lobby.players) do
+		if IsValid(ply) then
+			ply.lobby_card_element = nil
+		end
+	end
+
+	self.lobby = nil
 end

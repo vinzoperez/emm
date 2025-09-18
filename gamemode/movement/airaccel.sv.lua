@@ -8,5 +8,6 @@ function AiraccelService.HasStamina(ply)
 end
 
 function AiraccelService.ReduceStamina(ply, value)
+	
 	ply.stamina.airaccel:ReduceStamina(value)
 end

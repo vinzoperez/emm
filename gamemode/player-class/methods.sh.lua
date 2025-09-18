@@ -1,12 +1,22 @@
-local player_metatable = FindMetaTable("Player")
+local player_metatable = FindMetaTable "Player"
 
-local ent_metatable =  FindMetaTable("Entity")
+local ent_metatable =  FindMetaTable "Entity"
 local ent_get_table = ent_metatable.GetTable
 
 function player_metatable:__index(key)
 	local tab = ent_get_table(self)
 
 	if tab then
+		local dynamic_ply_class = tab.dynamic_player_class
+
+		if dynamic_ply_class then
+			local dynamic_ply_class_val = dynamic_ply_class[key]
+
+			if dynamic_ply_class_val ~= nil then
+				return dynamic_ply_class_val
+			end
+		end
+
 		local ply_class = tab.player_class
 
 		if ply_class then
@@ -50,7 +60,15 @@ function player_metatable:HasPlayerClass()
 end
 
 function player_metatable:SetupPlayerClass()
+	self.dynamic_player_class = table.Copy(self.player_class.dynamic_properties) or {}
+	self.player_class_objects = {}
 	self:SetupCoreProperties()
+
+	if self.StartPlayerClass then
+		self:StartPlayerClass()
+	end
+
+	hook.Run("SetupPlayerClass", self)
 
 	if CLIENT and IsLocalPlayer(self) then
 		hook.Run("LocalPlayerProperties", self)
@@ -63,6 +81,36 @@ function player_metatable:SetupPlayerClass()
 	end
 end
 
-function player_metatable:EndPlayerClass()
+function player_metatable:FinishPlayerClass()
+	if self.player_class_objects then
+		for _, object in pairs(self.player_class_objects) do
+			local instance = object.object or self[object.key]
+
+			if instance then
+				if object.callback then
+					object.callback()
+				end
+
+				if instance.Finish then
+					instance:Finish()
+				elseif instance.Remove then
+					instance:Remove()
+				end
+
+				if object.key then
+					self[object.key] = nil
+				end
+			end
+		end
+	end
+
+	self.dynamic_player_class = nil
+	self.player_class_objects = nil
 	self:SetupCoreProperties()
+
+	if self.EndPlayerClass then
+		self:EndPlayerClass()
+	end
+
+	hook.Run("FinishPlayerClass", self)
 end

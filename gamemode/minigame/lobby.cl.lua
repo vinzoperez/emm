@@ -1,5 +1,7 @@
-function MinigameService.CreateLobby(props)
-	local lobby = MinigameLobby.New(props)
+function MinigameService.CreateLobby(props, notify)
+	notify = Default(notify, true)
+
+	local lobby = MinigameLobby.New(props, notify)
 	MinigameService.lobbies[lobby.id] = lobby
 
 	return lobby
@@ -29,16 +31,23 @@ function MinigameService.InitHUDElements()
 end
 hook.Add("InitHUDElements", "MinigameService.InitHUDElements", MinigameService.InitHUDElements)
 
-function MinigameLobby:Init(props)
+function MinigameLobby:Init(props, notify)
 	self.id = props.id
 	self.prototype = props.prototype
 	self.state = props.state
 	self.last_state_start = props.last_state_start
 	self.host = props.host
 	self.players = props.players or {}
+	self.entities = props.entities or {}
+	self.state_objects = {}
 
 	for _, ply in pairs(self.players) do
 		ply.lobby = self
+	end
+
+	for _, ent in pairs(self.entities) do
+		ent.lobby = self
+		hook.Run("LobbyEntityProperties", ent)
 	end
 
 	for k, _ in pairs(self.prototype.player_classes) do
@@ -47,7 +56,7 @@ function MinigameLobby:Init(props)
 
 	self:InitSettings()
 
-	hook.Run("LobbyCreate", self)
+	hook.Run("LobbyCreate", self, notify)
 
 	if self:IsLocal() then
 		hook.Run("LocalLobbyCreate", self)
@@ -67,6 +76,10 @@ function MinigameLobby:Finish()
 
 	for _, ply in pairs(self.players) do
 		self:RemovePlayer(ply, false)
+	end
+
+	for _, ent in pairs(self.entities) do
+		self:RemoveEntity(ent, false)
 	end
 
 	table.Empty(self)
@@ -135,6 +148,7 @@ function MinigameLobby:RemovePlayer(ply)
 		table.RemoveByValue(self.players, ply)
 	end
 end
+
 hook.Add("PlayerDisconnected", "MinigameService.RemoveDisconnectedPlayer", function (ply)
 	if IsValid(ply) and ply.lobby then
 		ply.lobby:RemovePlayer(ply)
@@ -154,3 +168,37 @@ hook.Add("PlayerDisconnected", "MinigameService.RemoveDisconnectedPlayer", funct
 		end
 	end
 end)
+
+function MinigameLobby:AddEntity(ent)
+	ent.lobby = self
+	table.insert(self.entities, ent)
+
+	ent:CallOnRemove("LobbyFinish", function ()
+		self:RemoveEntity(ent)
+	end)
+
+	hook.Run("LobbyEntityAdd", self, ent)
+
+	if self:IsLocal() then
+		hook.Run("LocalLobbyEntityAdd", self, ent)
+	end
+
+	MinigameService.CallHook(self, "EntityAdd", ent)
+	hook.Run("LobbyEntityProperties", ent)
+end
+
+function MinigameLobby:RemoveEntity(ent)
+	if IsValid(ent) and not ent.removed_from_lobby then
+		hook.Run("LobbyEntityRemove", self, ent)
+
+		if self:IsLocal() then
+			hook.Run("LocalLobbyEntityRemove", self, ent)
+		end
+
+		MinigameService.CallHook(self, "EntityRemove", ent)
+
+		ent.lobby = nil
+		ent.removed_from_lobby = true
+		table.RemoveByValue(self.entities, ent)
+	end
+end

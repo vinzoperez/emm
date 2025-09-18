@@ -20,6 +20,8 @@ function MinigameLobby:Init(props)
 	self.prototype = props.prototype
 	self.host = props.host
 	self.players = props.players or {}
+	self.entities = props.entities or {}
+	self.state_objects = {}
 
 	for _, ply in pairs(self.players) do
 		ply.lobby = self
@@ -42,6 +44,10 @@ function MinigameLobby:Finish()
 
 	for _, ply in pairs(self.players) do
 		self:RemovePlayer(ply, false, true)
+	end
+
+	for _, ent in pairs(self.entities) do
+		ent:Remove()
 	end
 
 	NetService.Broadcast("LobbyFinish", self)
@@ -82,8 +88,6 @@ function MinigameLobby:RemovePlayer(ply, net, force)
 		if has_plys and self.host == ply then
 			self:SetHost(self.players[1])
 		end
-
-		ply.leaving_lobby = nil
 	else
 		MinigameService.FinishLobby(self)
 	end
@@ -93,3 +97,33 @@ hook.Add("PlayerDisconnected", "MinigameService.RemoveDisconnectedPlayer", funct
 		ply.lobby:RemovePlayer(ply)
 	end
 end)
+
+function MinigameLobby:AddEntity(ent)
+	ent.lobby = self
+	table.insert(self.entities, ent)
+
+	ent:CallOnRemove("LobbyFinish", function ()
+		self:RemoveEntity(ent, false)
+	end)
+
+	NetService.Broadcast("LobbyEntity", self, ent:EntIndex())
+	hook.Run("LobbyEntityAdd", self, ent)
+	MinigameService.CallHook(self, "EntityAdd", ent)
+end
+
+function MinigameLobby:RemoveEntity(ent, net)
+	net = Default(net, true)
+
+	if not ent.removed_from_lobby then
+		MinigameService.CallHook(self, "EntityRemove", ent)
+		hook.Run("LobbyEntityRemove", self, ent)
+
+		ent.lobby = nil
+		ent.removed_from_lobby = true
+		table.RemoveByValue(self.entities, ent)
+
+		if net then
+			NetService.Broadcast("LobbyEntityRemove", self, ent)
+		end
+	end
+end

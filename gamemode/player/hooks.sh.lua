@@ -4,6 +4,7 @@ NetService.CreateSchema("PlayerDisconnected", {"entity"})
 NetService.CreateSchema("PrePlayerDeath", {"entity", "entity"})
 NetService.CreateSchema("PlayerDeath", {"entity", "entity", "entity"})
 NetService.CreateSchema("PostPlayerDeath", {"entity"})
+NetService.CreateSchema("EntityTakeDamage", {"entity", "entity", "entity", "float"})
 
 -- # Properties
 
@@ -32,7 +33,6 @@ hook.Add("InitPlayerProperties", "InitCorePlayerProperties", function (ply)
 
 	ply.death_cooldown = 2
 	ply.last_death_time = 0
-	ply.old_velocity = Vector()
 end)
 
 hook.Add("PlayerDisconnected", "FinishPlayerProperties", function (ply)
@@ -48,7 +48,7 @@ end)
 hook.Add("ShouldCollide", "EMM.ShouldCollide", function (a, b)
 	local should_collide
 
-	if MinigameService.IsSharingLobby(a, b) then
+	if a:GetClass() ~= "prop_ragdoll" and b:GetClass() ~= "prop_ragdoll" and MinigameService.IsSharingLobby(a, b) then
 		should_collide = true
 	else
 		should_collide = false
@@ -74,6 +74,8 @@ hook.Add("OnEntityCreated", "AssignLobby", function (ent)
 	end
 end)
 
-hook.Add("Move", "EMM.OldVelocity", function (ply, move)
-	ply.old_velocity = move:GetVelocity()
+hook.Add("PlayerNoClip", "EMM.PlayerNoclip", function (ply, noclip)
+	-- local should_noclip = noclip
+
+	return false
 end)

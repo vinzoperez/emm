@@ -3,7 +3,15 @@
 local DefaultEase = CubicBezier(0, 0.66, 0.33, 1)
 
 local function FrameMultiplier()
-	return RealFrameTime() * 10
+	local time
+
+	if SERVER then
+		time = FrameTime()
+	else
+		time = RealFrameTime()
+	end
+
+	return time * 10
 end
 
 
@@ -104,7 +112,7 @@ function AnimatableValue:AnimateTo(v, props_or_duration, ease, delay)
 	local stack
 
 	if istable(props_or_duration) then
-		duration = props_or_duration.duration or 0.2
+		duration = props_or_duration.duration or ANIMATION_DURATION
 		ease = props_or_duration.ease or DefaultEase
 		delay = props_or_duration.delay or 0
 		finish = props_or_duration.finish
@@ -112,7 +120,7 @@ function AnimatableValue:AnimateTo(v, props_or_duration, ease, delay)
 		animate_callback = props_or_duration.animate_callback
 		stack = props_or_duration.stack
 	else
-		duration = props_or_duration or 0.2
+		duration = props_or_duration or ANIMATION_DURATION
 		ease = ease or DefaultEase
 		delay = delay or 0
 	end
@@ -154,6 +162,7 @@ function AnimatableValue:Finish()
 		SettingsService.RemoveHook(self.setting_hook, Class.TableID(self))
 	end
 
+	self.callback = nil
 	self.animations = {}
 	self:DisconnectFromHooks()
 end
@@ -222,7 +231,7 @@ function AnimatableValue:Animate()
 
 			if first_anim.animate_callback then
 				first_anim.animate_callback(self)
-			end	
+			end
 
 			if first_anim.callback then
 				first_anim.callback(self)
@@ -237,14 +246,8 @@ function AnimatableValue:Animate()
 	end
 end
 
-local cur_time = 0
-
-hook.Add("Think", "AnimatableValue.CurTime", function ()
-	cur_time = CurTime()
-end)
-
 function AnimatableValue:DetectChanges()
-	if cur_time > (self.last_change_time + self.debounce_time) and self.last_change ~= self.current then
+	if CurTime() > (self.last_change_time + self.debounce_time) and self.last_change ~= self.current then
 		self.debounce = self.current
 
 		if self.callback then

@@ -80,7 +80,7 @@ function LobbySettings:CreateSaver()
 	self.saver = self:Add(ButtonBar.New {
 		background_color = self.lobby.prototype.color,
 		color = COLOR_WHITE,
-		material = PNGMaterial("emm2/ui/save.png"),
+		material = PNGMaterial "emm2/ui/save.png",
 		text = "Save",
 
 		on_click = function ()
@@ -116,7 +116,9 @@ function LobbySettings:AddPlayerClassSetting(setting)
 	local setting_row = self.player_class_category:Add(InputBar.New(setting.label))
 
 	for ply_class_k, ply_class in pairs(self.lobby.prototype.player_classes) do
-		self:AddSetting(setting, ply_class_k, setting_row)
+		if ply_class.adjustable then
+			self:AddSetting(setting, ply_class_k, setting_row)
+		end
 	end
 end
 
@@ -293,12 +295,14 @@ function LobbySettings:InitSettings()
 
 	if table.Count(proto.player_classes) > 1 then
 		for ply_class_k, ply_class in pairs(proto.player_classes) do
-			self.player_class_category.label:Add(LobbyUIService.CreateLabel {
-				text = ply_class.name,
-				justification = JUSTIFY_END,
-				width = 100,
-				color = ply_class.color
-			})
+			if ply_class.adjustable then
+				self.player_class_category.label:Add(LobbyUIService.CreateLabel {
+					text = ply_class.name,
+					justification = JUSTIFY_END,
+					width = 100,
+					color = ply_class.color
+				})
+			end
 		end
 	end
 

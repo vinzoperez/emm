@@ -52,7 +52,7 @@ function LobbyUIService.Init()
 	end
 
 	for _, lobby in pairs(MinigameService.lobbies) do
-		LobbyUIService.AddLobby(lobby, true)
+		LobbyUIService.AddLobby(lobby, false)
 	end
 
 	LobbyUIService.SetLobbyListHeaderText(table.Count(MinigameService.lobbies))
@@ -70,13 +70,15 @@ UIService.Register("Lobbies", LobbyUIService, {
 
 -- # Hooks
 
-function LobbyUIService.AddLobby(lobby, no_notify)
+function LobbyUIService.AddLobby(lobby, notify)
+	notify = Default(notify, true)
+
 	if UIService.Active "Lobbies" then
 		local lobby_bar = LobbyBar.New(lobby)
 
 		LobbyUIService.lobby_list:Add(lobby_bar)
 
-		if not no_notify and lobby:IsLocal() then
+		if notify and lobby:IsLocal() then
 			LobbyUIService.SelectLobby(lobby)
 		end
 
@@ -88,10 +90,13 @@ function LobbyUIService.AddLobby(lobby, no_notify)
 			LobbyUIService.lobby_list:AnimateState "contains_children"
 		end
 
-		if not no_notify then
+		if notify then
 			lobby_bar:AnimateStart()
-			chat.AddText(lobby.prototype.color, lobby.host:GetName(), " has made a ", lobby.prototype.name, " lobby")
 		end
+	end
+
+	if notify then
+		chat.AddText(lobby.prototype.color, lobby.host:GetName(), " has made a ", lobby.prototype.name, " lobby")
 	end
 end
 hook.Add("LobbyCreate", "LobbyUIService.AddLobby", LobbyUIService.AddLobby)
@@ -221,11 +226,11 @@ function LobbyUIService.SelectLobby(lobby, no_notify)
 		else
 			LobbyUIService.lobby_card_section:AnimateAttribute("layout_crop_x", 0, ANIMATION_DURATION * 4)
 		end
-		
+
 		if lobby.bar_element then
 			lobby.bar_element:AnimateState "hover"
 		end
-		
+
 		LobbyUIService.selected_lobby = lobby
 		LobbyUIService.lobby_card_container = LobbyUIService.lobby_card_section:Add(LobbyCardContainer.New(lobby))
 
@@ -240,7 +245,7 @@ function LobbyUIService.UnSelectLobby()
 
 	if lobby then
 		local small_screen = LobbyUIService.SmallScreen()
-	
+
 		if lobby.bar_element then
 			lobby.bar_element:RevertState()
 		end
@@ -248,14 +253,14 @@ function LobbyUIService.UnSelectLobby()
 		if small_screen then
 			LobbyUIService.container.inner_container:AnimateAttribute("offset_x", 0, ANIMATION_DURATION * 4)
 		end
-	
+
 		LobbyUIService.lobby_card_section:AnimateAttribute("layout_crop_x", 1, ANIMATION_DURATION * 4)
 
 		if lobby == LobbyUIService.selected_lobby and LobbyUIService.lobby_card_container then
 			LobbyUIService.lobby_card_container:Finish()
 			LobbyUIService.lobby_card_container = nil
 		end
-	
+
 		LobbyUIService.selected_lobby = nil
 	end
 end
@@ -278,7 +283,7 @@ end
 
 function LobbyUIService.MousePressed(panel)
 	if UIService.Active "Lobbies" then
-		if 
+		if
 			not (LobbyUIService.SmallScreen() and LobbyUIService.viewing_settings) and
 			not ListSelector.focused and (
 				panel == LobbyUIService.container.panel or
@@ -294,7 +299,7 @@ function LobbyUIService.MousePressed(panel)
 
 			LobbyUIService.UnSelectLobby()
 		end
-		
+
 		if LobbyUIService.SmallScreen() and LobbyUIService.lobby_card_container then
 			if not LobbyUIService.lobby_card_container.settings.panel:IsCursorOutBoundsX() then
 				LobbyUIService.ViewSettings()

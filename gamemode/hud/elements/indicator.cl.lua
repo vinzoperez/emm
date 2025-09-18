@@ -1,8 +1,8 @@
 Indicator = Indicator or Class.New(Element)
 
-local indicator_material = Material("emm2/shapes/arrow.png", "noclamp smooth")
+local indicator_material = PNGMaterial "emm2/shapes/arrow.png"
 
-function Indicator:Init(ply_or_vec)
+function Indicator:Init(ent_or_vec)
 	Indicator.super.Init(self, {
 		layout = false,
 		width_percent = 1,
@@ -11,12 +11,15 @@ function Indicator:Init(ply_or_vec)
 		alpha = 0
 	})
 
-	if isentity(ply_or_vec) then
-		ply_or_vec.indicator = self
-		self.player = ply_or_vec
-		self.position = ply_or_vec:WorldSpaceCenter()
-	elseif isvector(ply_or_vec) then
-		self.position = ply_or_vec
+	local ent = isentity(ent_or_vec) and ent_or_vec
+
+	if ent then
+		ent.indicator = self
+
+		self.entity = ent
+		self.position = ent:WorldSpaceCenter()
+	elseif isvector(ent_or_vec) then
+		self.position = ent_or_vec
 	end
 
 	self.distance = LocalPlayer():EyePos():Distance(self.position)
@@ -30,13 +33,15 @@ function Indicator:Init(ply_or_vec)
 		return 0 > self.x or self.x > ScrW() or 0 > self.y or self.y > ScrH()
 	end
 
-	self.world_alpha = AnimatableValue.New(not OffScreen() and 255 or 0)
+	local already_off_screen = OffScreen()
+
+	self.world_alpha = AnimatableValue.New(not already_off_screen and 255 or 0)
 
 	self:SetAttribute("color", function ()
-		return GetSmoothPlayerColor(self.player)
+		return GetAnimatableEntityColor(self.entity)
 	end)
 
-	self.off_screen = AnimatableValue.New(OffScreen(), {
+	self.off_screen = AnimatableValue.New(already_off_screen, {
 		generate = OffScreen,
 
 		callback = function (anim_v)
@@ -56,7 +61,7 @@ function Indicator:Init(ply_or_vec)
 		height = INDICATOR_PERIPHERAL_SIZE,
 		material = indicator_material,
 		angle = 0,
-		alpha = 0
+		alpha = already_off_screen and 255 or 0
 	})
 end
 
@@ -89,10 +94,10 @@ function Indicator:Think()
 	end
 end
 
-function Indicator:AnimateFinish()
-	self:AnimateAttribute("alpha", 0, {
+function Indicator:Finish()
+	self:AnimateFinish {
 		callback = function ()
-			local ent = self.player
+			local ent = self.entity
 
 			if IsValid(ent) then
 				if self == ent.indicator then
@@ -102,11 +107,8 @@ function Indicator:AnimateFinish()
 
 			self.world_alpha:Finish()
 			self.off_screen:Finish()
-			Indicator.super.Finish(self)
-		end
-	})
-end
+		end,
 
-function Indicator:Finish()
-	self:AnimateFinish()
+		alpha = 0
+	}
 end

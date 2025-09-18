@@ -6,6 +6,12 @@ function MinigameService.ClearPlayerClasses(lobby)
 	end
 end
 
+function MinigameService.ClearEntities(lobby)
+	for _, ent in pairs(lobby.entities) do
+		ent:Remove()
+	end
+end
+
 function MinigameService.PickRandomPlayerClasses(lobby, props)
 	props = props or {}
 
@@ -17,7 +23,7 @@ function MinigameService.PickRandomPlayerClasses(lobby, props)
 
 	local less_prob_plys = props.less_probable_players
 	local less_prob_ply_chance = props.less_probable_player_chance or 0.33
-	
+
 	local plys = MinigameService.FilterPlayers(lobby, props)
 	local picked_plys = {}
 	local rejected_plys = {}
@@ -45,7 +51,7 @@ function MinigameService.PickRandomPlayerClasses(lobby, props)
 		end
 	end
 
-	return picked_plys, rejected_class
+	return picked_plys, rejected_plys
 end
 
 function MinigameService.PickClosestPlayerClass(lobby, origin_ply, props)

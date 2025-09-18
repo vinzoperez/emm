@@ -3,20 +3,29 @@ WalljumpService = WalljumpService or {}
 
 -- # Properties
 
-function WalljumpService.InitPlayerProperties(ply)
+function WalljumpService.InitPlayerProperties(ply, ply_class)
 	ply.can_walljump = true
 	ply.can_walljump_sky = false
-	ply.walljump_delay = 0.2
-	ply.walljump_distance = 30
-	ply.walljump_velocity_multiplier = 260
-	ply.walljump_up_velocity = 200
-	ply.walljump_sound = "npc/footsteps/hardboot_generic"
-	ply.walljump_angle = 58
-	ply.last_walljump_time = 0
+
+	if not ply_class then
+		ply.last_wallslide_time = 0
+		ply.last_wallslide_effect_time = 0
+		ply.walljump_delay = 0.2
+		ply.walljump_distance = 30
+		ply.walljump_velocity_multiplier = 260
+		ply.walljump_up_velocity = 200
+		ply.walljump_sound = "npc/footsteps/hardboot_generic"
+		ply.last_walljump_time = 0
+	end
 end
 hook.Add(
 	SERVER and "InitPlayerProperties" or "InitLocalPlayerProperties",
 	"WalljumpService.InitPlayerProperties",
+	WalljumpService.InitPlayerProperties
+)
+hook.Add(
+	"InitPlayerClassProperties",
+	"WalljumpService.InitPlayerClassProperties",
 	WalljumpService.InitPlayerProperties
 )
 
@@ -64,22 +73,16 @@ function WalljumpService.PressedWalljumpButtons(buttons, old_buttons)
 	return walljump_buttons_down > bit.band(walljump_buttons_down, old_buttons)
 end
 
-function WalljumpService.GetSurfaceDirection(vector)
-	local x = vector.x
-	local y = vector.y
-	local z = vector.z
-
-	return Vector(math.Clamp(math.ceil(x) + math.floor(x), -1, 1), math.Clamp(math.ceil(y) + math.floor(y), -1, 1), math.Clamp(math.ceil(z) + math.floor(z), -1, 1))
-end
-
 function WalljumpService.GetAngle(dir, wall_normal)
 	local angle = dir:Angle()
-	
-	wall_normal = WalljumpService.GetSurfaceDirection(wall_normal)
-	wall_normal.z = 0
+	local wall_ang = wall_normal:Angle()
+
+	wall_ang:Normalize()
 	angle:Normalize()
+
 	angle:RotateAroundAxis(wall_normal, 90)
-	
+	wall_ang = wall_ang.y
+
 	return math.abs(angle.p)
 end
 
@@ -90,14 +93,14 @@ function WalljumpService.Trace(ply, dir)
 	local walljump_distance = ply.walljump_distance - maxs.x
 	local perimeter_pos = ply_pos - Vector(dir.x * 23, dir.y * 23, 0)
 	local obb_trace = Vector(ply.walljump_distance/2, ply.walljump_distance/2, 0)
-	
+
 	perimeter_pos.x = math.Clamp(perimeter_pos.x, ply_pos.x + mins.x, ply_pos.x + maxs.x)
 	perimeter_pos.y = math.Clamp(perimeter_pos.y, ply_pos.y + mins.y, ply_pos.y + maxs.y)
 
-	if ply.sliding or ply.surfing then
-		perimeter_pos.z = perimeter_pos.z - (ply.slide_hover_height + 1)
+	if ply.sliding then
+		ply_pos.z = ply_pos.z - (ply.slide_hover_height + 2)
 	end
-	
+
 	local trace = util.TraceHull {
 		start = ply_pos,
 		endpos = perimeter_pos,
@@ -124,7 +127,7 @@ function WalljumpService.Walljump(ply, move, dir)
 	if
 		trace.Hit and
 		(ply.can_walljump_sky or not trace.HitSky) and
-		(ply.walljump_angle > WalljumpService.GetAngle(dir, trace.HitNormal))
+		(58 > WalljumpService.GetAngle(dir, trace.HitNormal))
 	then
 		did_walljump = true
 

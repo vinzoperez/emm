@@ -7,7 +7,8 @@ MARGIN = 4
 
 CAMUI_SMOOTH_MULTIPLIER = 16
 
-INDICATOR_WORLD_SIZE = 24
+INDICATOR_WORLD_SIZE = 18
+INDICATOR_ICON_SIZE = 32
 INDICATOR_PERIPHERAL_SIZE = 40
 INDICATOR_COASTER_SIZE = 150
 
@@ -35,6 +36,11 @@ surface.CreateFont("TextBar", {
 	font = "Roboto",
 	size = 24,
 	weight = 900
+})
+
+surface.CreateFont("TextBarSecondary", {
+	font = "Roboto Mono",
+	size = 24
 })
 
 surface.CreateFont("Header", {

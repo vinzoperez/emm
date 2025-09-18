@@ -41,6 +41,11 @@ SettingsService.New("show_crosshair_meters", {
 	callback = ReloadHUD
 })
 
+SettingsService.New("show_nametags", {
+	default = true,
+	help = "Show nametags"
+})
+
 SettingsService.New("show_indicators", {
 	default = true,
 	help = "Show indicators",
@@ -48,6 +53,11 @@ SettingsService.New("show_indicators", {
 	callback = function ()
 		IndicatorService.Reload(true)
 	end
+})
+
+SettingsService.New("show_outlines", {
+	default = true,
+	help = "Show indicator outlines"
 })
 
 SettingsService.New("show_keys", {
@@ -125,6 +135,11 @@ SettingsService.New("crosshair_meter_arc_length", {
 	min = 0,
 	max = 90,
 	help = "Crosshair meter arc length (degrees)"
+})
+
+surface.CreateFont("Countdown", {
+	font = "Roboto Mono",
+	size = 36
 })
 
 surface.CreateFont("HUDMeterValue", {

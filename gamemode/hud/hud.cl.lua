@@ -1,8 +1,8 @@
 HUDService = HUDService or {}
 
-local health_icon_material = Material("emm2/hud/health.png", "noclamp smooth")
-local speed_icon_material = Material("emm2/hud/speed.png", "noclamp smooth")
-local airaccel_icon_material = Material("emm2/hud/airaccel.png", "noclamp smooth")
+local health_icon_material = PNGMaterial "emm2/hud/health.png"
+local speed_icon_material = PNGMaterial "emm2/hud/speed.png"
+local airaccel_icon_material = PNGMaterial "emm2/hud/airaccel.png"
 
 function HUDService.KeyDown(key)
 	return IsValid(LocalPlayer():GetObserverTarget()) and (bit.band(SpectateService.buttons, key) ~= 0) or LocalPlayer():KeyDown(key)
@@ -61,6 +61,7 @@ function HUDService.InitContainers()
 
 	HUDService.crosshair_container = HUDService.container:Add(HUDService.CreateCrosshairContainer())
 	HUDService.crosshair_meter_container = HUDService.container:Add(HUDService.CreateCrosshairContainer(true))
+	
 end
 
 function HUDService.InitKeyEchoes()
@@ -131,29 +132,37 @@ function HUDService.InitKeyEchoes()
 		text = "JUMP",
 		key = IN_JUMP
 	})
-
+	HUDService.key_attack1 = HUDService.key_echos:Add(KeyEcho.New {
+		origin_justification_x = JUSTIFY_START,
+		origin_justification_y = JUSTIFY_START,
+		position_justification_x = JUSTIFY_START,
+		position_justification_y = JUSTIFY_START,
+		font = "KeyEchoSmall",
+		text = "M1",
+		key = IN_ATTACK
+	})
 	HUDService.key_attack2 = HUDService.key_echos:Add(KeyEcho.New {
 		origin_justification_x = JUSTIFY_END,
 		origin_justification_y = JUSTIFY_START,
 		position_justification_x = JUSTIFY_END,
 		position_justification_y = JUSTIFY_START,
 		font = "KeyEchoSmall",
-		text = "ATTACK 2",
+		text = "M2",
 		key = IN_ATTACK2
 	})
 end
 
 function HUDService.InitMeters()
 	local function Health()
-		return GetPlayer():Health()
+		return GetObservingPlayer():Health()
 	end
 
 	local function Speed()
-		return math.Round(GetPlayer():GetVelocity():Length2D())
+		return math.Round(GetObservingPlayer():GetVelocity():Length2D())
 	end
 
 	local function Airaccel()
-		return GetPlayer().can_airaccel and GetPlayer().stamina.airaccel:GetStamina() or 0
+		return GetObservingPlayer().can_airaccel and GetObservingPlayer().stamina.airaccel:GetStamina() or 0
 	end
 
 	if SettingsService.Get "show_hud_meters" then
@@ -206,6 +215,215 @@ function HUDService.InitCrosshairLines()
 	HUDService.crosshair_lines = HUDService.crosshair_container:Add(CrosshairLines.New())
 end
 
+surface.CreateFont("ScoreboardTitle", {
+	font = "Helvetica",
+	size = 32,
+	weight = 800
+})
+
+surface.CreateFont("ScoreboardPlayer", {
+	font = "Helvetica",
+	size = 22,
+	weight = 800,
+})
+
+local PLAYER_LINE = {
+	Init = function(self)
+		self.AvatarButton = self:Add("DButton")
+		self.AvatarButton:Dock(LEFT)
+		self.AvatarButton:DockMargin(3,3,0,3)
+		self.AvatarButton:SetSize(32,32)
+		self.AvatarButton:SetContentAlignment(5)
+		self.AvatarButton.DoClick = function() self.Player:ShowProfile() end
+
+		self.Avatar = vgui.Create("AvatarImage", self.AvatarButton)
+		self.Avatar:SetSize(32,32)
+		self.Avatar:SetMouseInputEnabled(false)
+
+		self.Name = self:Add("DLabel")
+		self.Name:Dock(FILL)
+		self.Name:SetFont("ScoreboardPlayer")
+		self.Name:SetTextColor( Color(100,100,100,0))
+		self.Name:DockMargin(0,0,0,0)
+		
+		self.MutePanel = self:Add("DPanel")
+		self.MutePanel:SetSize(36, self:GetTall())
+		self.MutePanel:Dock(RIGHT)
+		function self.MutePanel:Paint(w,h)
+			draw.RoundedBox(0,0,0,w,h, Color(50,50,50,0))
+		end
+
+		self.Mute = self.MutePanel:Add("DButton")
+		self.Mute:SetSize(32,32)
+		self.Mute:Dock(FILL)
+		self.Mute:SetContentAlignment(5)
+
+		self.Ping = self:Add("DLabel")
+		self.Ping:Dock(RIGHT)
+		self.Ping:DockMargin(0,0,2,0)
+		self.Ping:SetWidth(50)
+		self.Ping:SetFont("ScoreboardPlayer")
+		self.Ping:SetTextColor(Color(100,100,100,0))
+		self.Ping:SetContentAlignment(5)
+
+		self.ScorePanel = self:Add("DPanel")
+		self.ScorePanel:SetSize(60, self:GetTall())
+		self.ScorePanel:Dock(RIGHT)
+		self.ScorePanel:DockMargin(0,0,4,0)
+		function self.ScorePanel:Paint(w,h)
+			draw.RoundedBox(0,0,0,w,h, Color(100,100,100,0))
+		end
+
+		self.Velocity = self.ScorePanel:Add("DLabel")
+		self.Velocity:Dock(FILL)
+		self.Velocity:SetFont("ScoreboardDefault")
+		self.Velocity:SetTextColor(Color(100,100,100, 0))
+		self.Velocity:SetContentAlignment(5)
+		
+
+		self:Dock(TOP)
+		self:SetHeight(38)
+		self:DockMargin(10,0,10,2)
+
+	end,
+
+	Setup = function(self, pl)
+		self.Player = pl
+		self.Avatar:SetPlayer(pl)
+		self:Think(self)
+
+	end,
+
+	Think = function(self)
+		if (!IsValid(self.Player)) then
+			self:SetZPos(9999)
+			self:Remove()
+		end
+		self.Name:SetTextColor(Color(255,255,255))
+		self.Velocity:SetTextColor(Color(255,255,255))
+		self.Ping:SetTextColor(Color(255,255,255))
+
+		local plySpeed = self.Player:GetVelocity():Length() / 10
+		local rounded = math.ceil(plySpeed) * 10 / 10
+		self.Velocity:SetText( tostring(rounded))
+
+		if (self.PName == nil || self.PName != self.Player:Nick()) then
+			self.PName = self.Player:Nick()
+			self.Name:SetText(self.PName)
+		end
+		if (self.NumPing == nil || self.NumPing != self.Player:Ping()) then
+			self.NumPing = self.Player:Ping()
+			self.Ping:SetText(self.NumPing)
+		end
+		if (self.Muted == nil || self.Muted != self.Player:IsMuted()) then
+			self.Muted = self.Player:IsMuted()
+			if (self.Muted) then
+				self.Mute:SetImage("icon32/muted.png")
+			else
+				self.Mute:SetImage("icon32/unmuted.png")
+			end
+
+			self.Mute.DoClick = function() self.Player:SetMuted(!self.Muted) end
+		end
+
+	end,
+
+	Paint = function(self, w, h)
+		if (!IsValid(self.Player)) then
+			return 
+		end
+
+		if (!self.Player:Alive()) then
+			draw.RoundedBox(4,0,0,w,h, Color(10,10,10,150))
+
+		end
+		draw.RoundedBox(4,0,0,w,h, Color(10,10,10,150))
+	end
+}
+PLAYER_LINE = vgui.RegisterTable(PLAYER_LINE, "DPanel")
+
+local SCORE_BOARD = {
+	Init = function(self)
+
+		self.Header = self:Add("Panel")
+		self.Header:Dock(TOP)
+		self.Header:SetHeight(50)
+
+		self.Name = self.Header:Add("DLabel")
+		self.Name:SetFont("ScoreboardTitle")
+		self.Name:SetTextColor(Color(255,255,255,250))
+		self.Name:Dock(LEFT)
+		self.Name:SetWidth(900) -- give it a fixed width
+		self.Name:SetContentAlignment(4) -- left aligned
+
+		self.VelocityHeader = self.Header:Add("DLabel")
+		self.VelocityHeader:SetFont("ScoreboardDefault")
+		self.VelocityHeader:SetTextColor(Color(255,255,255,150))
+		self.VelocityHeader:Dock(RIGHT)
+		self.VelocityHeader:SetWidth(200) -- reserve space for it
+		self.VelocityHeader:SetContentAlignment(6) -- right aligned
+		self.VelocityHeader:DockMargin(0,0,20,0)
+		
+		
+
+		self.Scores = self:Add("DScrollPanel")
+		self.Scores:Dock(FILL)
+		self.Scores:DockMargin(0,0,0,10)
+		local scrollBar = self.Scores:GetVBar()
+		scrollBar:DockMargin(-5,0,0,0)
+
+		function scrollBar:Paint(w, h)
+			surface.SetDrawColor(10,10,10,0)
+			surface.DrawOutlinedRect(0,0,w-1,h-1)
+		end
+		function scrollBar.btnGrip:Paint(w,h)
+			draw.RoundedBox(0,0,0,w,h, Color(150,200,150,0))
+		end
+	end,
+
+	PerformLayout = function(self)
+		self:SetSize(1250,ScrH() - 250)
+		self:SetPos(ScrW() / 2 - 1250 / 2, 250/2)
+
+	end,
+
+	Paint = function(self, w, h)
+		draw.RoundedBox(8,0,0,w,h,Color(10,10,10,0))
+
+	end,
+
+	Think = function(self, w, h)
+		self.Name:SetText("Extended Movement Mod 2 Beta | Vinzo's Version")
+		self.VelocityHeader:SetText("velocity")
+		for id, pl in pairs(player.GetAll()) do
+			if (IsValid(pl.VelocityEntry)) then continue end
+
+			pl.VelocityEntry = vgui.CreateFromTable(PLAYER_LINE, pl.VelocityEntry)
+			pl.VelocityEntry:Setup(pl)
+
+			self.Scores:AddItem(pl.VelocityEntry)
+		end
+	end
+}
+
+SCORE_BOARD = vgui.RegisterTable(SCORE_BOARD, "EditablePanel")
+
+function GM:ScoreboardShow()
+		if (!IsValid(Scoreboard)) then
+			Scoreboard = vgui.CreateFromTable(SCORE_BOARD)
+		end
+		if (IsValid(Scoreboard)) then
+			Scoreboard:Show()
+			Scoreboard:MakePopup()
+			Scoreboard:SetKeyBoardInputEnabled(false)
+		end
+	end
+function GM:ScoreboardHide()
+	if (IsValid(Scoreboard)) then
+		Scoreboard:Hide()
+	end
+end
+
 function HUDService.Init()
 	if SettingsService.Get "show_hud" then
 		HUDService.animatable_color = AnimatableValue.New(COLOR_WHITE, {
@@ -223,7 +441,6 @@ function HUDService.Init()
 		end
 
 		HUDService.InitMeters()
-
 		if SettingsService.Get "show_crosshair" then
 			HUDService.InitCrosshairLines()
 		end
@@ -236,7 +453,7 @@ function HUDService.Init()
 			-- end
 		end
 
-		hook.Run("InitHUDElements")
+		hook.Run "InitHUDElements"
 	end
 end
 hook.Add("InitUI", "HUDService.Init", HUDService.Init)
@@ -354,7 +571,7 @@ hook.Add("LocalPlayerDeath", "HUDService.DeathHide", HUDService.DeathHide)
 
 function HUDService.LobbyUIShow()
 	if SettingsService.Get "show_hud" then
-		if LocalPlayer():Alive() then
+		if GhostService.Alive(LocalPlayer()) then
 			HUDService.ShowAll()
 
 			if IndicatorService.Visible() then

@@ -5,20 +5,28 @@ AiraccelService = AiraccelService or {}
 
 CreateConVar("emm_airaccelerate", 10, FCVAR_REPLICATED, "Air acceleration")
 
-function AiraccelService.InitPlayerProperties(ply)
+function AiraccelService.InitPlayerProperties(ply, ply_class)
 	ply.can_airaccel = true
 	ply.has_infinite_airaccel = false
-	ply.airaccel_regen_step = 0.1
-	ply.airaccel_decay_step = 0.1
-	ply.airaccel_cooldown = 2
-	ply.airaccel_velocity_cost = 0.01
-	ply.airaccel_boost_velocity = 10000
-	ply.airaccel_sound = "player/suit_sprint.wav"
-	ply.air_accelerate = GetConVar("emm_airaccelerate"):GetFloat()
+	ply.air_accelerate = AiraccelService.GetDefaultAiraccel()
+
+	if not ply_class then
+		ply.airaccel_regen_step = 0.1
+		ply.airaccel_decay_step = 0.1
+		ply.airaccel_cooldown = 2
+		ply.airaccel_velocity_cost = 0.01
+		ply.airaccel_boost_velocity = 10000
+		ply.airaccel_sound = "player/suit_sprint.wav"
+	end
 end
 hook.Add(
 	SERVER and "InitPlayerProperties" or "InitLocalPlayerProperties",
 	"AiraccelService.InitPlayerProperties",
+	AiraccelService.InitPlayerProperties
+)
+hook.Add(
+	"InitPlayerClassProperties",
+	"AiraccelService.InitPlayerClassProperties",
 	AiraccelService.InitPlayerProperties
 )
 
@@ -71,15 +79,11 @@ function AiraccelService.KeyPress(ply, key)
 end
 hook.Add("KeyPress", "AiraccelService.KeyPress", AiraccelService.KeyPress)
 
-function AiraccelService.WishDir(ply, fwd, fwd_speed, side_speed)
-	return (Vector(fwd.x, fwd.y, 0):GetNormalized() * fwd_speed) + (Vector(fwd.y, -fwd.x, 0):GetNormalized() * side_speed * 1.05)
-end
-
-
 -- # Airacceling
 
 function AiraccelService.Velocity(ply, move, amount)
-	local strafe_vel = AiraccelService.WishDir(ply, move:GetMoveAngles():Forward(), move:GetForwardSpeed(), move:GetSideSpeed())
+	local fwd = move:GetMoveAngles():Forward()
+	local strafe_vel = (Vector(fwd.x, fwd.y, 0):GetNormalized() * move:GetForwardSpeed()) + (Vector(fwd.y, -fwd.x, 0):GetNormalized() * move:GetSideSpeed() * 1.05)
 	local strafe_vel_length = math.Clamp(strafe_vel:Length(), 0, 300)
 	local strafe_vel_norm = strafe_vel:GetNormalized()
 	local vel_diff = strafe_vel_length/10 - move:GetVelocity():Dot(strafe_vel_norm)
@@ -89,7 +93,7 @@ end
 
 function AiraccelService.SetupAiraccel(ply, move)
 	if CLIENT then
-		ply = GetPlayer()
+		ply = GetObservingPlayer()
 	end
 
 	if
@@ -120,7 +124,7 @@ function AiraccelService.SetupAiraccel(ply, move)
 
 		if ply:Alive() and not ply:OnGround() then
 			local vel_diff, new_vel = AiraccelService.Velocity(ply, move, ply.air_accelerate)
-			
+
 			if vel_diff > 0 then
 				move:SetVelocity(new_vel)
 			end
